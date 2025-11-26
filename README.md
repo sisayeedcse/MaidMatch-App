@@ -9,6 +9,7 @@ A modern, elegant Flutter application connecting urban households with verified 
 ## 🌟 Features
 
 ### For Customers
+
 - 📱 **Phone Authentication** - Secure SMS OTP login
 - 🔍 **Smart Search** - Find service providers by skill and category
 - ⭐ **Verified Profiles** - NID, Police clearance, NGO verification
@@ -18,6 +19,7 @@ A modern, elegant Flutter application connecting urban households with verified 
 - 🆘 **Safety Features** - Panic button, emergency contacts
 
 ### For Service Providers
+
 - 📋 **Job Dashboard** - Manage all job requests in one place
 - ✅ **Accept/Decline** - Control your work schedule
 - 💰 **Earnings Tracker** - Monitor completed jobs and income
@@ -46,27 +48,32 @@ A modern, elegant Flutter application connecting urban households with verified 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/sisayeedcse/MaidMatch-App.git
    cd MaidMatch-App
    ```
 
 2. **Install dependencies**
+
    ```bash
    flutter pub get
    ```
 
 3. **Firebase Setup**
+
    - Create a Firebase project at [Firebase Console](https://console.firebase.google.com)
    - Enable Phone Authentication
    - Download `google-services.json` and place in `android/app/`
    - Add SHA-1 and SHA-256 fingerprints to Firebase Console
 
 4. **Generate SHA keys** (Windows)
+
    ```powershell
    cd android
    .\gradlew signingReport
    ```
+
    Copy SHA-1 and SHA-256 to Firebase Console → Project Settings → Add fingerprint
 
 5. **Run the app**
@@ -76,7 +83,7 @@ A modern, elegant Flutter application connecting urban households with verified 
 
 ## 📱 Screenshots
 
-*Coming soon - Screenshots showcasing the modern UI and key features*
+_Coming soon - Screenshots showcasing the modern UI and key features_
 
 ## 🏗️ Project Structure
 
@@ -149,16 +156,19 @@ dependencies:
 ## 🧪 Testing
 
 ### Test with Real SMS
+
 - Ensure SHA keys are configured
 - Use real phone numbers
 - Actual SMS delivery
 
 ### Test with Firebase Test Numbers
+
 - Add test numbers in Firebase Console
 - No SMS sent, predefined OTP
 - Free, no quota usage
 
 ### Dev Mode
+
 - Click "Dev Mode (Skip Auth)" on login
 - Bypasses authentication
 - For UI testing only
@@ -166,6 +176,7 @@ dependencies:
 ## 🔮 Roadmap
 
 ### Phase 1 (Completed) ✅
+
 - Firebase Authentication
 - User roles (Customer/Provider)
 - Service provider listings
@@ -173,6 +184,7 @@ dependencies:
 - Safety features UI
 
 ### Phase 2 (In Progress) 🚧
+
 - Applink SMS/USSD integration
 - Real payment processing
 - Google Maps integration
@@ -180,6 +192,7 @@ dependencies:
 - Push notifications (FCM)
 
 ### Phase 3 (Planned) 📋
+
 - AI/ML matching engine
 - Background verification API
 - Call masking with Applink
@@ -203,6 +216,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 👨‍💻 Author
 
 **Sisayeed**
+
 - GitHub: [@sisayeedcse](https://github.com/sisayeedcse)
 
 ## 🙏 Acknowledgments
@@ -215,6 +229,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 For support, issues, or feature requests:
+
 - Create an issue on GitHub
 - Check documentation files in the repository
 - Review [FIREBASE_AUTH_GUIDE.md](FIREBASE_AUTH_GUIDE.md) for setup help
