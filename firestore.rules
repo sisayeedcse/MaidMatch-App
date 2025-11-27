@@ -1,0 +1,304 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is the owner of the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if request has valid data
+    function hasValidData(requiredFields) {
+      return request.resource.data.keys().hasAll(requiredFields);
+    }
+    
+    // Check if timestamp is not in the past (for bookings)
+    function isValidFutureDate() {
+      return request.resource.data.date >= request.time;
+    }
+    
+    // Check if status transition is valid
+    function isValidStatusTransition(oldStatus, newStatus) {
+      // Valid transitions:
+      // pending -> accepted, cancelled
+      // accepted -> active, cancelled
+      // active -> completed, cancelled
+      // completed -> (no changes)
+      // cancelled -> (no changes)
+      
+      return (oldStatus == 'pending' && (newStatus == 'accepted' || newStatus == 'cancelled'))
+          || (oldStatus == 'accepted' && (newStatus == 'active' || newStatus == 'cancelled'))
+          || (oldStatus == 'active' && (newStatus == 'completed' || newStatus == 'cancelled'));
+    }
+    
+    // ============================================
+    // USERS COLLECTION
+    // ============================================
+    match /users/{userId} {
+      // Allow read if authenticated
+      allow read: if isAuthenticated();
+      
+      // Allow create only for the user themselves
+      allow create: if isOwner(userId) 
+                    && hasValidData(['uid', 'phoneNumber', 'role', 'createdAt'])
+                    && request.resource.data.uid == userId
+                    && request.resource.data.role in ['customer', 'provider'];
+      
+      // Allow update only for the user themselves and specific fields
+      allow update: if isOwner(userId)
+                    && request.resource.data.uid == resource.data.uid  // UID cannot be changed
+                    && request.resource.data.role == resource.data.role  // Role cannot be changed
+                    && request.resource.data.phoneNumber == resource.data.phoneNumber;  // Phone cannot be changed
+      
+      // Allow delete only for the user themselves
+      allow delete: if isOwner(userId);
+    }
+    
+    // ============================================
+    // BOOKINGS COLLECTION
+    // ============================================
+    match /bookings/{bookingId} {
+      // Allow read if user is customer or provider of the booking
+      allow read: if isAuthenticated() 
+                  && (request.auth.uid == resource.data.customerId 
+                      || request.auth.uid == resource.data.providerId);
+      
+      // Allow create only if user is the customer
+      allow create: if isAuthenticated()
+                    && request.auth.uid == request.resource.data.customerId
+                    && hasValidData([
+                      'bookingId',
+                      'customerId',
+                      'providerId',
+                      'customerName',
+                      'customerPhone',
+                      'serviceType',
+                      'date',
+                      'timeSlot',
+                      'duration',
+                      'totalPrice',
+                      'address',
+                      'status',
+                      'createdAt'
+                    ])
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.totalPrice > 0
+                    && request.resource.data.duration > 0
+                    && request.resource.data.customerId != request.resource.data.providerId;  // Cannot book yourself
+      
+      // Allow update with specific conditions
+      allow update: if isAuthenticated() && (
+        // Customer can cancel their own booking
+        (request.auth.uid == resource.data.customerId
+         && resource.data.status in ['pending', 'accepted', 'active']
+         && request.resource.data.status == 'cancelled'
+         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'cancellationReason']))
+        
+        // Provider can accept pending booking
+        || (request.auth.uid == resource.data.providerId
+            && resource.data.status == 'pending'
+            && request.resource.data.status == 'accepted'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'acceptedAt']))
+        
+        // Provider can decline (cancel) pending booking
+        || (request.auth.uid == resource.data.providerId
+            && resource.data.status == 'pending'
+            && request.resource.data.status == 'cancelled'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'cancellationReason']))
+        
+        // Provider can start accepted booking
+        || (request.auth.uid == resource.data.providerId
+            && resource.data.status == 'accepted'
+            && request.resource.data.status == 'active'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+        
+        // Provider can complete active booking
+        || (request.auth.uid == resource.data.providerId
+            && resource.data.status == 'active'
+            && request.resource.data.status == 'completed'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt']))
+      );
+      
+      // No delete allowed - bookings are permanent records
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // REVIEWS COLLECTION
+    // ============================================
+    match /reviews/{reviewId} {
+      // Allow read for all authenticated users
+      allow read: if isAuthenticated();
+      
+      // Allow create only if user is the reviewer and booking exists
+      allow create: if isAuthenticated()
+                    && request.auth.uid == request.resource.data.customerId
+                    && hasValidData([
+                      'reviewId',
+                      'bookingId',
+                      'customerId',
+                      'providerId',
+                      'rating',
+                      'comment',
+                      'createdAt'
+                    ])
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5
+                    && exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId))
+                    && get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.status == 'completed';
+      
+      // Allow update only by the reviewer within 24 hours
+      allow update: if isAuthenticated()
+                    && request.auth.uid == resource.data.customerId
+                    && request.time < resource.data.createdAt + duration.value(24, 'h')
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'updatedAt']);
+      
+      // Allow delete only by the reviewer
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.customerId;
+    }
+    
+    // ============================================
+    // NOTIFICATIONS COLLECTION
+    // ============================================
+    match /notifications/{notificationId} {
+      // Allow read only for the recipient
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      
+      // System can create notifications (no direct user creation)
+      allow create: if false;
+      
+      // Allow update only to mark as read
+      allow update: if isAuthenticated() 
+                    && request.auth.uid == resource.data.userId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+      
+      // Allow delete by the owner
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    // ============================================
+    // CHAT MESSAGES COLLECTION
+    // ============================================
+    match /chats/{chatId}/messages/{messageId} {
+      // Allow read if user is participant in the chat
+      allow read: if isAuthenticated() 
+                  && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
+      
+      // Allow create if user is participant and is the sender
+      allow create: if isAuthenticated()
+                    && request.auth.uid == request.resource.data.senderId
+                    && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+                    && hasValidData(['messageId', 'senderId', 'text', 'createdAt']);
+      
+      // No update or delete of messages
+      allow update: if false;
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // CHATS METADATA COLLECTION
+    // ============================================
+    match /chats/{chatId} {
+      // Allow read if user is a participant
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      
+      // Allow create if user is one of the participants
+      allow create: if isAuthenticated()
+                    && request.auth.uid in request.resource.data.participants
+                    && request.resource.data.participants.size() == 2
+                    && hasValidData(['chatId', 'participants', 'createdAt']);
+      
+      // Allow update only to change lastMessage and updatedAt
+      allow update: if isAuthenticated()
+                    && request.auth.uid in resource.data.participants
+                    && request.resource.data.participants == resource.data.participants
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'updatedAt']);
+      
+      // No delete of chats
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // PROVIDER AVAILABILITY COLLECTION
+    // ============================================
+    match /availability/{providerId} {
+      // Allow read for all authenticated users
+      allow read: if isAuthenticated();
+      
+      // Allow create/update only by the provider themselves
+      allow create, update: if isAuthenticated() 
+                            && isOwner(providerId)
+                            && hasValidData(['providerId', 'isAvailable', 'updatedAt']);
+      
+      // Allow delete by the provider
+      allow delete: if isAuthenticated() && isOwner(providerId);
+    }
+    
+    // ============================================
+    // EMERGENCY CONTACTS COLLECTION
+    // ============================================
+    match /emergencyContacts/{userId} {
+      // Allow read/write only by the user themselves
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // ============================================
+    // PAYMENT RECORDS COLLECTION (Future)
+    // ============================================
+    match /payments/{paymentId} {
+      // Allow read if user is payer or payee
+      allow read: if isAuthenticated()
+                  && (request.auth.uid == resource.data.customerId 
+                      || request.auth.uid == resource.data.providerId);
+      
+      // No direct creation - only through Cloud Functions
+      allow create: if false;
+      
+      // No updates or deletes - payment records are immutable
+      allow update, delete: if false;
+    }
+    
+    // ============================================
+    // REPORTS/COMPLAINTS COLLECTION
+    // ============================================
+    match /reports/{reportId} {
+      // Allow read only by the reporter and admin (future)
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.reporterId;
+      
+      // Allow create by authenticated users
+      allow create: if isAuthenticated()
+                    && request.auth.uid == request.resource.data.reporterId
+                    && hasValidData([
+                      'reportId',
+                      'reporterId',
+                      'reportedUserId',
+                      'reason',
+                      'description',
+                      'createdAt'
+                    ])
+                    && request.resource.data.reporterId != request.resource.data.reportedUserId;  // Cannot report yourself
+      
+      // No updates or deletes by users
+      allow update, delete: if false;
+    }
+    
+    // ============================================
+    // DEFAULT DENY ALL OTHER COLLECTIONS
+    // ============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

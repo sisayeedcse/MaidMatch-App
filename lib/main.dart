@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'widgets/auth_wrapper.dart';
+import 'screens/home_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+
+// ⚠️ TESTING MODE: Set to true to skip login
+const bool SKIP_LOGIN_FOR_TESTING = true;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +29,7 @@ class MaidMatchApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: const AuthWrapper(),
+      home: SKIP_LOGIN_FOR_TESTING ? const HomeScreen() : const AuthWrapper(),
       title: 'MaidMatch',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
+import '../models/user_model.dart';
+import 'edit_profile_screen.dart';
+import 'edit_provider_profile_screen.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -12,6 +16,57 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   bool _notificationsEnabled = true;
   bool _locationEnabled = false;
   final AuthService _authService = AuthService();
+
+  Future<void> _navigateToEditProfile() async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      // Fetch user data from Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('User data not found'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final user = UserModel.fromFirestore(userDoc);
+
+      // Navigate to appropriate edit screen based on role
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => user.isProvider
+              ? EditProviderProfileScreen(user: user)
+              : EditProfileScreen(user: user),
+        ),
+      );
+
+      // Refresh screen if profile was updated
+      if (result == true && mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
@@ -166,7 +221,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     icon: Icons.person_outline_rounded,
                     title: "Edit Profile",
                     subtitle: "Update your personal information",
-                    onTap: () {},
+                    onTap: _navigateToEditProfile,
                   ),
                   _buildSettingTile(
                     icon: Icons.phone_rounded,

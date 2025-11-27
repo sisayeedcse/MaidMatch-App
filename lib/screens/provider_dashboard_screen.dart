@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../services/booking_service.dart';
+import '../services/auth_service.dart';
+import '../models/booking_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -11,6 +15,31 @@ class ProviderDashboardScreen extends StatefulWidget {
 class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   bool isAvailable = true;
   int selectedTab = 0;
+  final BookingService _bookingService = BookingService();
+  final AuthService _authService = AuthService();
+  Map<String, dynamic> _stats = {
+    'totalJobs': 0,
+    'completedJobs': 0,
+    'totalEarnings': 0,
+    'monthEarnings': 0,
+    'todayEarnings': 0,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    final currentUser = _authService.currentUser;
+    if (currentUser != null) {
+      final stats = await _bookingService.getProviderStats(currentUser.uid);
+      setState(() {
+        _stats = stats;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -198,7 +227,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     Expanded(
                       child: _buildStatCard(
                         icon: Icons.account_balance_wallet_rounded,
-                        value: "৳28k",
+                        value: "৳${(_stats['monthEarnings'] ~/ 1000)}k",
                         label: "Earnings",
                         color: const Color(0xFF6366F1),
                       ),
@@ -328,78 +357,81 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   }
 
   Widget _buildJobList() {
-    if (selectedTab == 0) {
-      return ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        children: [
-          _buildJobCard(
-            customerName: "Ayesha Rahman",
-            location: "Dhanmondi, Dhaka",
-            service: "Cooking",
-            time: "Tomorrow, 9 AM - 1 PM",
-            price: "৳700",
-            status: "pending",
-          ),
-          _buildJobCard(
-            customerName: "Kamal Hossain",
-            location: "Gulshan 1",
-            service: "Cooking",
-            time: "Today, 6 PM - 9 PM",
-            price: "৳500",
-            status: "pending",
-          ),
-          _buildJobCard(
-            customerName: "Nasrin Akter",
-            location: "Banani",
-            service: "Cooking",
-            time: "Dec 1, 10 AM - 2 PM",
-            price: "৳800",
-            status: "pending",
-          ),
-        ],
-      );
-    } else if (selectedTab == 1) {
-      return ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        children: [
-          _buildJobCard(
-            customerName: "Rafi Ahmed",
-            location: "Mirpur 10",
-            service: "Cooking",
-            time: "Today, 2 PM - 6 PM",
-            price: "৳700",
-            status: "active",
-          ),
-        ],
-      );
-    } else {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history_rounded, size: 64, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            Text(
-              "No completed jobs yet",
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-      );
+    final currentUser = _authService.currentUser;
+    if (currentUser == null) {
+      return const Center(child: Text('Please login to view jobs'));
     }
+
+    String? statusFilter;
+    if (selectedTab == 0) {
+      statusFilter = 'pending';
+    } else if (selectedTab == 1) {
+      statusFilter = 'active';
+    } else {
+      statusFilter = 'completed';
+    }
+
+    return StreamBuilder<List<BookingModel>>(
+      stream: _bookingService.getBookingsStream(
+        userId: currentUser.uid,
+        isProvider: true,
+        status: statusFilter,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        final bookings = snapshot.data ?? [];
+
+        if (bookings.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  selectedTab == 0
+                      ? Icons.inbox_rounded
+                      : selectedTab == 1
+                      ? Icons.work_outline_rounded
+                      : Icons.history_rounded,
+                  size: 64,
+                  color: Colors.grey.shade300,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  selectedTab == 0
+                      ? "No pending requests"
+                      : selectedTab == 1
+                      ? "No active jobs"
+                      : "No completed jobs yet",
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: bookings.length,
+          itemBuilder: (context, index) {
+            final booking = bookings[index];
+            return _buildJobCardFromModel(booking);
+          },
+        );
+      },
+    );
   }
 
-  Widget _buildJobCard({
-    required String customerName,
-    required String location,
-    required String service,
-    required String time,
-    required String price,
-    required String status,
-  }) {
-    final Color statusColor = status == "pending"
+  Widget _buildJobCardFromModel(BookingModel booking) {
+    final Color statusColor = booking.isPending
         ? const Color(0xFFFBBF24)
-        : status == "active"
+        : booking.isActive
         ? const Color(0xFF10B981)
         : Colors.grey;
 
@@ -437,7 +469,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      customerName,
+                      booking.customerName,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -452,7 +484,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          location,
+                          booking.address,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
@@ -464,7 +496,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                 ),
               ),
               Text(
-                price,
+                "৳${booking.totalPrice}",
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -489,19 +521,19 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  time,
+                  '${booking.formattedDate}, ${booking.timeSlot}',
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                 ),
               ],
             ),
           ),
-          if (status == "pending") ...[
+          if (booking.status == "pending") ...[
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () => _declineJob(booking.bookingId),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.red.shade300),
                       shape: RoundedRectangleBorder(
@@ -525,7 +557,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: ElevatedButton(
-                      onPressed: () => _acceptJob(customerName),
+                      onPressed: () => _acceptJob(booking),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -534,7 +566,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         ),
                       ),
                       child: const Text(
-                        "Accept Job",
+                        "Accept",
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -546,43 +578,185 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
               ],
             ),
           ],
-          if (status == "active") ...[
+          if (booking.status == "active") ...[
             const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.call_rounded, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      "Contact Customer",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () => _completeJob(booking.bookingId),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        "Mark as Complete",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.call_rounded,
+                      color: Color(0xFF10B981),
+                    ),
+                    onPressed: () => _callCustomer(booking.customerPhone),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Future<void> _acceptJob(BookingModel booking) async {
+    try {
+      await _bookingService.acceptBooking(booking.bookingId);
+      _loadStats(); // Refresh stats
+      if (mounted) {
+        _showJobAcceptedDialog(booking.customerName);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
+    }
+  }
+
+  Future<void> _declineJob(String bookingId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Decline Job'),
+        content: const Text('Are you sure you want to decline this job?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Decline', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _bookingService.declineBooking(bookingId, 'Declined by provider');
+        _loadStats();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+        }
+      }
+    }
+  }
+
+  Future<void> _completeJob(String bookingId) async {
+    try {
+      await _bookingService.completeJob(bookingId);
+      _loadStats(); // Refresh stats
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Job marked as complete!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
+    }
+  }
+
+  Future<void> _callCustomer(String phone) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    }
+  }
+
+  void _showJobAcceptedDialog(String customerName) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF10B981), Color(0xFF059669)],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  size: 48,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Job Accepted!",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Booking with $customerName has been accepted",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text("Got it"),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -639,59 +813,6 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text("Got it"),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _acceptJob(String customerName) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF059669)],
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  size: 48,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "Job Accepted!",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "SMS sent to $customerName via Applink API\nYou can now contact the customer",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    setState(() => selectedTab = 1);
-                  },
-                  child: const Text("View Active Job"),
                 ),
               ),
             ],

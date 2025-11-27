@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/booking_service.dart';
+import '../services/auth_service.dart';
+import '../models/user_model.dart';
 
 class BookingCheckoutScreen extends StatefulWidget {
   final String name;
@@ -64,7 +67,8 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
     return selectedDurationData['price'];
   }
 
-  void _confirmBooking() {
+  Future<void> _confirmBooking() async {
+    // Show processing dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -97,7 +101,7 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                "Processing payment...",
+                "Creating booking...",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ],
@@ -106,10 +110,73 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
       ),
     );
 
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      final authService = AuthService();
+      final bookingService = BookingService();
+      final currentUser = authService.currentUser;
+
+      if (currentUser == null) {
+        Navigator.pop(context);
+        _showErrorDialog('Please login to continue');
+        return;
+      }
+
+      // Get current user data
+      final userDoc = await authService.getUserDocument(currentUser.uid);
+      final userData = UserModel.fromFirestore(userDoc);
+
+      // Parse date
+      DateTime bookingDate;
+      if (selectedDate == 'Today') {
+        bookingDate = DateTime.now();
+      } else if (selectedDate == 'Tomorrow') {
+        bookingDate = DateTime.now().add(const Duration(days: 1));
+      } else {
+        // For custom date, use tomorrow as default for now
+        bookingDate = DateTime.now().add(const Duration(days: 1));
+      }
+
+      // Create booking (Note: providerId should come from selected provider)
+      // For demo, we'll use a placeholder - in production, pass actual provider data
+      await bookingService.createBooking(
+        customerId: currentUser.uid,
+        providerId: 'provider_${widget.phone}', // Placeholder
+        serviceType: widget.skill,
+        date: bookingDate,
+        timeSlot: selectedTime,
+        duration: selectedDuration,
+        totalPrice: _getSelectedPrice(),
+        address: userData.address ?? 'Address not set',
+        specialInstructions: '', // You can add a text field for this
+        customerName: userData.name,
+        customerPhone: userData.phoneNumber,
+        providerName: widget.name,
+        providerPhone: widget.phone,
+        providerSkill: widget.skill,
+      );
+
       Navigator.pop(context);
       _showSuccessDialog();
-    });
+    } catch (e) {
+      Navigator.pop(context);
+      _showErrorDialog('Failed to create booking: ${e.toString()}');
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSuccessDialog() {

@@ -12,7 +12,9 @@ class UserModel {
 
   // Provider-specific fields
   final List<String>? skills;
-  final double? rating;
+  final double? rating; // Legacy field - use averageRating instead
+  final double? averageRating; // Average rating from reviews
+  final int? totalReviews; // Total number of reviews
   final int? completedJobs;
   final bool? isAvailable;
   final String? bio;
@@ -33,6 +35,8 @@ class UserModel {
     this.updatedAt,
     this.skills,
     this.rating,
+    this.averageRating,
+    this.totalReviews,
     this.completedJobs,
     this.isAvailable,
     this.bio,
@@ -55,6 +59,8 @@ class UserModel {
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       skills: (data['skills'] as List<dynamic>?)?.cast<String>(),
       rating: (data['rating'] as num?)?.toDouble(),
+      averageRating: (data['averageRating'] as num?)?.toDouble(),
+      totalReviews: data['totalReviews'] as int?,
       completedJobs: data['completedJobs'] as int?,
       isAvailable: data['isAvailable'] as bool?,
       bio: data['bio'] as String?,
@@ -82,6 +88,8 @@ class UserModel {
     // Provider fields
     if (skills != null) data['skills'] = skills;
     if (rating != null) data['rating'] = rating;
+    if (averageRating != null) data['averageRating'] = averageRating;
+    if (totalReviews != null) data['totalReviews'] = totalReviews;
     if (completedJobs != null) data['completedJobs'] = completedJobs;
     if (isAvailable != null) data['isAvailable'] = isAvailable;
     if (bio != null) data['bio'] = bio;
@@ -107,6 +115,8 @@ class UserModel {
     DateTime? updatedAt,
     List<String>? skills,
     double? rating,
+    double? averageRating,
+    int? totalReviews,
     int? completedJobs,
     bool? isAvailable,
     String? bio,
@@ -125,6 +135,8 @@ class UserModel {
       updatedAt: updatedAt ?? this.updatedAt,
       skills: skills ?? this.skills,
       rating: rating ?? this.rating,
+      averageRating: averageRating ?? this.averageRating,
+      totalReviews: totalReviews ?? this.totalReviews,
       completedJobs: completedJobs ?? this.completedJobs,
       isAvailable: isAvailable ?? this.isAvailable,
       bio: bio ?? this.bio,

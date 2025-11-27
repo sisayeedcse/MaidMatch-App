@@ -8,6 +8,7 @@ class MaidCard extends StatefulWidget {
   final String rating;
   final String skill;
   final String phone;
+  final int? totalReviews;
 
   const MaidCard({
     super.key,
@@ -16,6 +17,7 @@ class MaidCard extends StatefulWidget {
     required this.rating,
     required this.skill,
     required this.phone,
+    this.totalReviews,
   });
 
   @override
@@ -441,14 +443,26 @@ class _MaidCardState extends State<MaidCard>
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "(120+ reviews)",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
+                          if (widget.totalReviews != null &&
+                              widget.totalReviews! > 0) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              "(${widget.totalReviews}+ reviews)",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
+                              ),
                             ),
-                          ),
+                          ] else ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              "(No reviews yet)",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
