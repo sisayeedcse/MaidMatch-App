@@ -85,34 +85,34 @@ A modern, elegant Flutter application connecting urban households with verified 
 
 ### Authentication
 
-<img src="screenshots/MaidMatch_Login.png" width="250" alt="Login Screen"/>
+<img src="Screenshots/MaidMatch_Login.png" width="250" alt="Login Screen"/>
 
 _Secure phone authentication with OTP verification_
 
 ### Service Catalog
 
-<img src="screenshots/MaidMatch_catelog.png" width="250" alt="Service Catalog"/>
+<img src="Screenshots/MaidMatch_catelog.png" width="250" alt="Service Catalog"/>
 
 _Browse verified service providers by category_
 
 ### Booking Management
 
-<img src="screenshots/MaidMatch_booking.png" width="250" alt="Booking Screen"/>
+<img src="Screenshots/MaidMatch_booking.png" width="250" alt="Booking Screen"/>
 
 _Easy booking flow with real-time availability_
 
 ### User Profile
 
 <p>
-<img src="screenshots/MaidMatch_userProfile.png" width="250" alt="User Profile"/>
-<img src="screenshots/MaidMatch_userprofile2.png" width="250" alt="User Profile Details"/>
+<img src="Screenshots/MaidMatch_userProfile.png" width="250" alt="User Profile"/>
+<img src="Screenshots/MaidMatch_userprofile2.png" width="250" alt="User Profile Details"/>
 </p>
 
 _Comprehensive profile management for customers and providers_
 
 ### Notifications
 
-<img src="screenshots/MaidMatch_notify.png" width="250" alt="Notifications"/>
+<img src="Screenshots/MaidMatch_notify.png" width="250" alt="Notifications"/>
 
 _Stay updated with real-time booking notifications_
 
