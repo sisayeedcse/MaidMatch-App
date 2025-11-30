@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="#FFFFFF">
+
+    <!-- Header -->
+    <ImageView
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:src="@drawable/ic_lock"
+        android:tint="#6366F1"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Verify OTP"
+        android:textSize="24sp"
+        android:textColor="#1F2937"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Phone Number Display -->
+    <TextView
+        android:id="@+id/phoneDisplay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="OTP sent to +880XXXXXXXXXX"
+        android:textSize="14sp"
+        android:textColor="#6B7280"
+        android:layout_marginBottom="32dp" />
+
+    <!-- OTP Input Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:elevation="4dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Enter 6-Digit OTP"
+                android:textSize="14sp"
+                android:textColor="#374151"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <!-- OTP Input -->
+            <EditText
+                android:id="@+id/otpInput"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:hint="000000"
+                android:inputType="number"
+                android:maxLength="6"
+                android:padding="16dp"
+                android:background="@drawable/edit_text_background"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#1F2937"
+                android:gravity="center"
+                android:letterSpacing="0.2" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="OTP is valid for 5 minutes"
+                android:textSize="12sp"
+                android:textColor="#9CA3AF"
+                android:layout_marginTop="8dp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Verify Button -->
+    <Button
+        android:id="@+id/verifyButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Verify OTP"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/button_background"
+        android:elevation="2dp"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:visibility="gone"
+        android:indeterminateTint="#6366F1"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Resend Button -->
+    <Button
+        android:id="@+id/resendButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Resend OTP"
+        android:textSize="14sp"
+        android:textColor="#6366F1"
+        android:background="?attr/selectableItemBackground"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="12dp" />
+
+    <!-- Info Text -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Didn't receive the code? Check your SMS or request a new one"
+        android:textSize="12sp"
+        android:textColor="#9CA3AF"
+        android:gravity="center"
+        android:layout_marginTop="16dp" />
+
+</LinearLayout>
